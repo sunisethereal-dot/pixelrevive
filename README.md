@@ -1,7 +1,7 @@
 # PixelRevive ✨ // On-Device ESRGAN Super-Resolution
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/username/pixelrevive/main/screenshot.png" alt="PixelRevive Screenshot" width="100%" />
+  <img src="https://raw.githubusercontent.com/sunisethereal-dot/pixelrevive/main/screenshot.png" alt="PixelRevive Screenshot" width="100%" />
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/username/pixelrevive.git
+git clone https://github.com/sunisethereal-dot/pixelrevive.git
 cd pixelrevive
 ```
 

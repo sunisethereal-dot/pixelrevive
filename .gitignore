@@ -2,16 +2,19 @@
 node_modules/
 npm-debug.log*
 
-# Generated outputs (keep .gitkeep, ignore big images)
+# Generated outputs
 outputs/*.png
 outputs/*.jpg
 !outputs/.gitkeep
 
-# QVAC Local Model Cache
+# QVAC Local Model Cache & Reference Docs
 .qvac/
 *.pth
 *.gguf
 *.bin
+docs.txt
+QVAC.md
+SUBMISSION.md
 
 # OS Cruft
 .DS_Store

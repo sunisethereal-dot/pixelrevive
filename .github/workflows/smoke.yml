@@ -1,0 +1,35 @@
+name: smoke
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci || npm install
+
+      - name: Verify QVAC dep + functions (no cloud APIs)
+        run: |
+          echo "--- package.json QVAC dep ---"
+          grep -i qvac package.json || (echo "missing QVAC dep in package.json" && exit 1)
+          echo "--- QVAC functions used ---"
+          grep -rn "loadModel\|upscale" src public || (echo "missing loadModel/upscale usage" && exit 1)
+          echo "--- reject cloud APIs ---"
+          if grep -rni "openai\|anthropic\|api.openai\|generativelanguage" src public; then echo "cloud API string found" && exit 1; fi
+          echo "smoke static checks passed"
+
+      - name: Build (if present)
+        run: npm run build --if-present
+
+      - name: Test (if present)
+        run: npm test --if-present -- --passWithNoTests
