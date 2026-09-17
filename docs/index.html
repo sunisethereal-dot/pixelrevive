@@ -7,9 +7,13 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>PixelRevive Studio // On-Device ESRGAN 4x</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     /* ==========================================================================
        PIXELREVIVE STUDIO DESIGN SYSTEM
+       Adapted from Deutsch im Blick monochrome design language
        ========================================================================== */
     *, *::before, *::after {
       box-sizing: border-box;
@@ -18,35 +22,33 @@
     }
 
     :root {
-      --studio-bg: #090b10;
-      --studio-surface: #0f131d;
-      --studio-surface-card: #151a28;
-      --studio-elevated: #1d2438;
+      --studio-bg: #050507;
+      --studio-surface: #0d0d11;
+      --studio-surface-card: #09090c;
+      --studio-elevated: #1a1a22;
       --studio-border: rgba(255, 255, 255, 0.08);
-      --studio-border-hover: rgba(99, 102, 241, 0.4);
-      --studio-border-active: #6366f1;
+      --studio-border-hover: rgba(255, 255, 255, 0.28);
+      --studio-border-active: #ffffff;
 
-      --studio-primary: #6366f1;
-      --studio-primary-glow: rgba(99, 102, 241, 0.35);
-      --studio-accent-cyan: #06b6d4;
+      --studio-primary: #ffffff;
+      --studio-primary-glow: rgba(255, 255, 255, 0.12);
+      --studio-accent-amber: #fbbf24;
+      --studio-accent-amber-bg: rgba(245, 158, 11, 0.14);
+      --studio-accent-amber-border: rgba(245, 158, 11, 0.32);
       --studio-accent-emerald: #10b981;
 
       --studio-text-head: #ffffff;
-      --studio-text-body: #94a3b8;
-      --studio-text-dim: #64748b;
+      --studio-text-body: #a1a1aa;
+      --studio-text-dim: #71717a;
 
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-      --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", monospace;
 
       --split-pos: 50%;
     }
 
     body {
-      background-color: var(--studio-bg);
-      background-image:
-        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.12), transparent 45%),
-        radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.06), transparent 50%);
-      background-size: 100% 100%, 100% 100%;
+      background-color: #000000;
       color: var(--studio-text-head);
       font-family: var(--font-sans);
       min-height: 100vh;
@@ -55,27 +57,50 @@
       align-items: center;
       padding: 20px 16px 40px;
       -webkit-font-smoothing: antialiased;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Ambient glow — subtle white radials like reference */
+    body::before {
+      content: '';
+      position: absolute;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 520px;
+      background: radial-gradient(circle 500px at center, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 45%, transparent 75%);
+      pointer-events: none;
+      z-index: 0;
     }
 
     .studio-shell {
       width: 100%;
-      max-width: 980px;
+      max-width: 1140px;
       display: flex;
       flex-direction: column;
       gap: 18px;
+      position: relative;
+      z-index: 1;
     }
 
-    /* Top Navigation Header */
+    /* Floating Glass Pill Navbar */
     .studio-header {
-      background: rgba(15, 19, 29, 0.85);
-      border: 1px solid var(--studio-border);
-      border-radius: 14px;
-      padding: 14px 20px;
+      background: rgba(13, 13, 17, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 9999px;
+      padding: 10px 22px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      position: sticky;
+      top: 20px;
+      z-index: 100;
     }
 
     .studio-brand {
@@ -85,20 +110,20 @@
     }
 
     .studio-logo-cube {
-      width: 32px;
-      height: 32px;
-      border-radius: 9px;
-      background: #6366f1;
+      width: 30px;
+      height: 30px;
+      border-radius: 9999px;
+      background: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 14px var(--studio-primary-glow);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
     }
 
     .studio-logo-cube svg {
-      width: 18px;
-      height: 18px;
-      color: #fff;
+      width: 16px;
+      height: 16px;
+      color: #000;
     }
 
     .studio-title-wrap {
@@ -107,9 +132,9 @@
     }
 
     .studio-brand-title {
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -117,67 +142,70 @@
 
     .studio-tag {
       font-family: var(--font-mono);
-      font-size: 10px;
-      padding: 2px 7px;
-      border-radius: 5px;
-      background: rgba(99, 102, 241, 0.12);
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      color: #a5b4fc;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background: var(--studio-surface);
+      border: 1px solid var(--studio-border);
+      color: var(--studio-text-body);
       text-transform: uppercase;
     }
 
     .studio-brand-sub {
       font-size: 11px;
-      color: var(--studio-text-body);
+      color: var(--studio-text-dim);
     }
 
     .studio-header-right {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .studio-airgap-badge {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 0.5rem;
       font-family: var(--font-mono);
-      font-size: 11px;
-      color: #34d399;
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.25);
-      padding: 4px 10px;
-      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--studio-text-body);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--studio-border);
+      padding: 0.3rem 0.8rem;
+      border-radius: 9999px;
     }
 
     .studio-pulse-dot {
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: #10b981;
       box-shadow: 0 0 8px #10b981;
-      animation: pulse 2s infinite ease-in-out;
+      animation: pulse 1.8s infinite ease-in-out;
     }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.8); }
+      50% { opacity: 0.45; transform: scale(0.9); }
     }
 
     .studio-link-back {
-      font-size: 11px;
+      font-size: 0.72rem;
       font-family: var(--font-mono);
+      font-weight: 600;
       color: var(--studio-text-body);
       text-decoration: none;
-      padding: 4px 10px;
-      border-radius: 6px;
+      padding: 0.3rem 0.8rem;
+      border-radius: 9999px;
       border: 1px solid var(--studio-border);
-      transition: all 0.15s;
+      transition: all 0.2s;
     }
 
     .studio-link-back:hover {
       color: #fff;
-      border-color: var(--studio-primary);
+      border-color: rgba(255, 255, 255, 0.28);
     }
 
     /* Comparison Viewport Card */
@@ -189,7 +217,7 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
-      box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.85);
+      box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.9);
     }
 
     .studio-viewport-toolbar {
@@ -219,9 +247,9 @@
     }
 
     .studio-res-badge.highlight {
-      border-color: rgba(99, 102, 241, 0.4);
-      background: rgba(99, 102, 241, 0.1);
-      color: #a5b4fc;
+      border-color: var(--studio-border);
+      background: rgba(255, 255, 255, 0.06);
+      color: #ffffff;
     }
 
     .studio-snaps {
@@ -243,15 +271,15 @@
     }
 
     .studio-snap-btn:hover {
-      border-color: var(--studio-primary);
+      border-color: rgba(255, 255, 255, 0.28);
       color: #fff;
     }
 
     .studio-snap-btn.active {
-      border-color: var(--studio-accent-cyan);
-      background: rgba(6, 182, 212, 0.18);
-      color: #38bdf8;
-      box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
+      border-color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
     }
 
     /* Comparison Stage */
@@ -313,8 +341,8 @@
       left: var(--split-pos);
       width: 2px;
       transform: translateX(-50%);
-      background: #6366f1;
-      box-shadow: 0 0 12px #6366f1, 0 0 2px #fff;
+      background: #ffffff;
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.4), 0 0 2px #fff;
       pointer-events: none;
       z-index: 5;
     }
@@ -327,12 +355,12 @@
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      background: #111420;
-      border: 1.5px solid #818cf8;
+      background: #0d0d11;
+      border: 1.5px solid rgba(255, 255, 255, 0.6);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 16px rgba(99, 102, 241, 0.5), 0 4px 14px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 0 16px rgba(255, 255, 255, 0.2), 0 4px 14px rgba(0, 0, 0, 0.8);
       cursor: col-resize;
       pointer-events: auto;
       transition: transform 0.15s ease;
@@ -345,14 +373,14 @@
     .studio-puck svg {
       width: 14px;
       height: 14px;
-      color: #a5b4fc;
+      color: rgba(255, 255, 255, 0.7);
     }
 
     /* Laser Scanline Beam */
     .studio-scanline {
       position: absolute;
       inset: 0;
-      background-color: rgba(99, 102, 241, 0.25);
+      background-color: rgba(255, 255, 255, 0.08);
       pointer-events: none;
       z-index: 4;
       opacity: 0;
@@ -413,7 +441,7 @@
     .studio-panel-title svg {
       width: 14px;
       height: 14px;
-      color: var(--studio-primary);
+      color: var(--studio-accent-amber);
     }
 
     /* Drag & Drop Box */
@@ -432,8 +460,8 @@
     }
 
     .studio-drop-zone:hover, .studio-drop-zone.drag-over {
-      border-color: var(--studio-primary);
-      background: rgba(99, 102, 241, 0.05);
+      border-color: rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.03);
     }
 
     .studio-drop-icon svg {
@@ -448,8 +476,8 @@
       justify-content: space-between;
       padding: 6px 10px;
       border-radius: 6px;
-      background: rgba(99, 102, 241, 0.08);
-      border: 1px solid rgba(99, 102, 241, 0.25);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--studio-border);
       font-family: var(--font-mono);
       font-size: 11px;
     }
@@ -469,25 +497,25 @@
 
     /* Action Buttons */
     .studio-btn-run {
-      background: #6366f1;
-      color: #fff;
+      background: #ffffff;
+      color: #000000;
       border: none;
       padding: 12px 18px;
       border-radius: 9px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       font-family: var(--font-sans);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 4px 16px var(--studio-primary-glow);
+      box-shadow: 0 4px 16px rgba(255, 255, 255, 0.1);
       transition: all 0.18s ease;
     }
 
     .studio-btn-run:hover:not(:disabled) {
-      filter: brightness(1.1);
+      filter: brightness(0.92);
       transform: translateY(-1px);
     }
 
@@ -520,9 +548,9 @@
     }
 
     .studio-btn-sec:hover {
-      border-color: var(--studio-primary);
+      border-color: rgba(255, 255, 255, 0.28);
       background: var(--studio-elevated);
-      color: #a5b4fc;
+      color: #ffffff;
     }
 
     /* Telemetry Pill Strip */
@@ -554,8 +582,8 @@
     }
 
     .studio-status-dot.busy {
-      background: var(--studio-accent-cyan);
-      box-shadow: 0 0 8px var(--studio-accent-cyan);
+      background: #ffffff;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
       animation: pulse 0.8s infinite;
     }
 
@@ -617,12 +645,12 @@
     .localrun-dialog {
       max-width: 460px;
       width: 100%;
-      background: #0b1220;
-      border: 1px solid rgba(56, 189, 248, 0.4);
+      background: #0d0d11;
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 14px;
       padding: 24px;
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-family: var(--font-sans);
     }
 
     .localrun-dialog h2 {
@@ -634,7 +662,7 @@
     .localrun-dialog p {
       font-size: 13px;
       line-height: 1.55;
-      color: #cbd5e1;
+      color: #a1a1aa;
       margin: 0 0 12px;
     }
 
@@ -642,8 +670,8 @@
       display: flex;
       gap: 8px;
       align-items: stretch;
-      background: #020617;
-      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 8px;
       padding: 10px 12px;
       margin-bottom: 12px;
@@ -654,7 +682,7 @@
       font-family: var(--font-mono);
       font-size: 11px;
       line-height: 1.6;
-      color: #7dd3fc;
+      color: var(--studio-accent-amber);
       white-space: pre-wrap;
       word-break: break-all;
     }
@@ -667,23 +695,23 @@
     }
 
     .localrun-cmd button {
-      background: rgba(56, 189, 248, 0.15);
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      color: #38bdf8;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #ffffff;
       padding: 6px 12px;
       white-space: nowrap;
     }
 
     .localrun-close {
       width: 100%;
-      background: #38bdf8;
+      background: #ffffff;
       border: none;
-      color: #020617;
+      color: #000000;
       padding: 10px;
     }
 
     :focus-visible {
-      outline: 2px solid #818cf8;
+      outline: 2px solid rgba(255, 255, 255, 0.5);
       outline-offset: 2px;
     }
 
@@ -709,24 +737,17 @@
           </svg>
         </div>
         <div class="studio-title-wrap">
-          <h1 class="studio-brand-title">
-            PixelRevive Studio
-            <span class="studio-tag">ESRGAN 4x</span>
-          </h1>
+          <h1 class="studio-brand-title">PixelRevive Studio</h1>
           <p class="studio-brand-sub">On-Device Neural Super-Resolution</p>
         </div>
       </div>
 
       <div class="studio-header-right">
-        <span class="studio-airgap-badge" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); font-weight: 600;">
-          <span class="studio-pulse-dot" style="background: #38bdf8; box-shadow: 0 0 8px #38bdf8;"></span>
-          <span>POWERED BY TETHER QVAC SDK</span>
-        </span>
-        <div class="studio-airgap-badge" title="Inference runs fully on-device after a one-time cached model download">
+        <span class="studio-airgap-badge">
           <span class="studio-pulse-dot"></span>
-          <span>AIR-GAPPED INFERENCE (0 KB EGRESS*)</span>
-        </div>
-        <a href="https://github.com/sunisethereal-dot/pixelrevive" class="studio-link-back">GitHub Repo ↗</a>
+          <span>QVAC SDK</span>
+        </span>
+        <a href="https://github.com/sunisethereal-dot/pixelrevive" class="studio-link-back">GitHub ↗</a>
       </div>
     </header>
 
@@ -777,7 +798,7 @@
       </div>
 
       <div class="studio-viewport-footer">
-        <span>Keyboard: <kbd style="color: var(--studio-accent-cyan);">←</kbd> <kbd style="color: var(--studio-accent-cyan);">→</kbd> arrows • Hold <kbd style="color: var(--studio-accent-cyan);">Space</kbd> for 1x</span>
+        <span>Keyboard: <kbd style="color: var(--studio-accent-amber);">←</kbd> <kbd style="color: var(--studio-accent-amber);">→</kbd> arrows • Hold <kbd style="color: var(--studio-accent-amber);">Space</kbd> for 1x</span>
         <span>Tile Size: 128 (memory-safe) • *weights download once, then cached</span>
       </div>
     </main>
@@ -806,7 +827,7 @@
 
         <div class="studio-file-chip" id="fileChip">
           <span id="chipFileName">sample.jpg</span>
-          <span id="chipFileMeta" style="color: #a5b4fc;">256×256 • Ready</span>
+          <span id="chipFileMeta" style="color: var(--studio-accent-amber);">256×256 • Ready</span>
           <button type="button" class="studio-chip-reset" id="btnResetSample" title="Restore sample asset">×</button>
         </div>
       </div>
