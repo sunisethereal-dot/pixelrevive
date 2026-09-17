@@ -8,7 +8,7 @@
   <a href="https://sunisethereal-dot.github.io/pixelrevive"><img src="https://img.shields.io/badge/Live%20Webapp-GitHub%20Pages-6366f1.svg?style=for-the-badge&logo=github&logoColor=white" alt="Live Demo on GitHub Pages" /></a>
   <a href="https://qvac.tether.io"><img src="https://img.shields.io/badge/Powered%20By-Tether%20QVAC%20SDK-00C4B4.svg?style=for-the-badge" alt="Powered By Tether QVAC SDK" /></a>
   <a href="https://npmjs.com/package/@qvac/sdk"><img src="https://img.shields.io/badge/QVAC%20SDK-v0.19.1-purple.svg?style=for-the-badge&logo=npm" alt="QVAC SDK Version" /></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%3E%3D22.17-brightgreen.svg?style=for-the-badge&logo=node.js" alt="Node.js Version" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%3E%3D22.21.0%20(or%20%3E%3D24.9.0)-brightgreen.svg?style=for-the-badge&logo=node.js" alt="Node.js Version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue.svg?style=for-the-badge" alt="Apache 2.0 License" /></a>
   <a href="#"><img src="https://img.shields.io/badge/Cloud%20Data%20Egress-0.00%20KB%20(Air--Gapped)-emerald.svg?style=for-the-badge" alt="Zero Cloud Data Egress" /></a>
 </p>
@@ -87,8 +87,10 @@ flowchart LR
 
 ## ⚡ Prerequisites
 
-- **Node.js**: `>= 22.17.0` (Verify with `node -v`)
-- **npm**: `>= 10.9.0`
+- **Node.js**: `>= 22.21.0 (or >= 24.9.0)` (Verify with `node -v`)
+  > [!IMPORTANT]
+  > **Node.js Compatibility Requirement:** The underlying Bare runtime modules (`bare-module-lexer`, `bare-type-stripper`) in `@qvac/sdk` require Node.js `22.21.0+` (or `24.9.0+`) to prevent worker thread startup crashes. Node.js versions below 22.21.0 (e.g. 22.17.x) are incompatible and will cause worker initialization errors.
+- **npm**: `>= 10.0.0`
 - **Operating System**: Windows 10/11 x64, macOS, or Linux
 
 ---
@@ -135,6 +137,25 @@ Drag the slider to compare the original low-res image against the 4x ESRGAN supe
 node src/index.js path/to/your-photo.jpg
 ```
 The enhanced result will be saved to `outputs/upscaled.png`.
+
+### 7. Manage On-Device Model Cache
+Inspect cached weights, check integrity, and manage storage:
+```bash
+# Inspect model cache status, size, and offline readiness
+npm run cache:status
+
+# Safely clean temporary or corrupted model cache files
+npm run cache:clean
+```
+
+### 8. System Requirement & Hardware Preflight Diagnostics
+Run the automated preflight diagnostic check for on-device AI requirements:
+```bash
+npm run check
+# or
+node src/index.js --check
+```
+Inspects and reports Node.js engine compatibility (`^22.21.0 || >=24.9.0`), 64-bit CPU architecture and cores, RAM availability (< 4GB warning threshold), cache storage accessibility (`%USERPROFILE%/.qvac` or `~/.qvac`), and Windows DirectML / GPU acceleration readiness.
 
 ---
 
