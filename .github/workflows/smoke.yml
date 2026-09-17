@@ -12,7 +12,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "22.17.0"
           cache: npm
 
       - name: Install
@@ -28,8 +28,11 @@ jobs:
           if grep -rni "openai\|anthropic\|api.openai\|generativelanguage" src public; then echo "cloud API string found" && exit 1; fi
           echo "smoke static checks passed"
 
-      - name: Build (if present)
-        run: npm run build --if-present
-
-      - name: Test (if present)
-        run: npm test --if-present -- --passWithNoTests
+      - name: Validate configs + syntax (no model download)
+        run: |
+          node --check src/index.js
+          node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); JSON.parse(require('fs').readFileSync('qvac.config.json','utf8')); console.log('JSON OK')"
+          test -f src/index.js
+          test -f qvac.config.json
+          test -f public/index.html
+          echo "static validation passed (no model download)"

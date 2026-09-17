@@ -68,13 +68,23 @@ export async function runUpscale(inputSource, outputPath = path.join(ROOT_DIR, '
   let sourceDesc;
 
   if (Buffer.isBuffer(inputSource)) {
+    if (inputSource.length === 0) {
+      throw new Error('Invalid input image: buffer is empty (corrupt image).');
+    }
     rawImage = inputSource;
     sourceDesc = `<In-Memory Buffer (${(rawImage.length / 1024).toFixed(1)} KB)>`;
   } else if (typeof inputSource === 'string') {
     if (!fs.existsSync(inputSource)) {
       throw new Error(`Input image file not found: ${inputSource}`);
     }
-    rawImage = fs.readFileSync(inputSource);
+    try {
+      rawImage = fs.readFileSync(inputSource);
+    } catch (err) {
+      throw new Error(`Input image file unreadable: ${inputSource} (${err.message})`);
+    }
+    if (!rawImage || rawImage.length === 0) {
+      throw new Error(`Invalid input image (empty or corrupt file): ${inputSource}`);
+    }
     sourceDesc = inputSource;
   } else {
     throw new Error('Invalid input image: must be a file path string or Buffer.');
@@ -95,56 +105,95 @@ export async function runUpscale(inputSource, outputPath = path.join(ROOT_DIR, '
   console.log('\n[1/3] Loading RealESRGAN upscaler via loadModel()...');
   const loadStart = Date.now();
 
-  const modelId = await loadModel({
-    modelSrc: REALESRGAN_X4PLUS,
-    modelType: 'diffusion',
-    modelConfig: {
-      mode: 'upscale',
-      upscaler: { tile_size: 128 }
-    },
-    onProgress: (p) => {
-      const pct = (p.percentage || 0).toFixed(0);
-      const mb = (n) => ((n || 0) / 1e6).toFixed(1);
-      const line = `  ▸ Downloading/Mapping: ${pct}% (${mb(p.downloaded)}/${mb(p.total)} MB)`;
-      process.stdout.write(process.stdout.isTTY ? `\r${line}` : `${line}\n`);
-      if (onProgress) onProgress(p);
+  let modelId = null;
+  let loadDuration = '0.00';
+  let upscaleStart = 0;
+  let upscaledBuffer = null;
+  let upscaleStats = null;
+  let upscaleDuration = '0.00';
+
+  try {
+    try {
+      modelId = await loadModel({
+        modelSrc: REALESRGAN_X4PLUS,
+        modelType: 'diffusion',
+        modelConfig: {
+          mode: 'upscale',
+          upscaler: { tile_size: 128 }
+        },
+        onProgress: (p) => {
+          const safe = p ?? {};
+          const rawPct = Number(safe.percentage);
+          const pct = (Number.isFinite(rawPct) ? rawPct : 0).toFixed(0);
+          const mb = (n) => ((Number.isFinite(Number(n)) ? Number(n) : 0) / 1e6).toFixed(1);
+          const line = `  ▸ Downloading/Mapping: ${pct}% (${mb(safe.downloaded)}/${mb(safe.total)} MB)`;
+          process.stdout.write(process.stdout.isTTY ? `\r${line}` : `${line}\n`);
+          if (onProgress) onProgress(p);
+        }
+      });
+    } catch (err) {
+      throw new Error(`Failed to load model REALESRGAN_X4PLUS (network down or empty cache?): ${err.message}`);
     }
-  });
 
-  const loadDuration = ((Date.now() - loadStart) / 1000).toFixed(2);
-  console.log(`\n  [PASS] Model loaded in ${loadDuration}s. Model ID: ${modelId}`);
+    loadDuration = ((Date.now() - loadStart) / 1000).toFixed(2);
+    console.log(`\n  [PASS] Model loaded in ${loadDuration}s. Model ID: ${modelId}`);
 
-  // 2. Perform Upscaling
-  console.log('\n[2/3] Performing 4x super-resolution via upscale()...');
-  const upscaleStart = Date.now();
+    // 2. Perform Upscaling
+    console.log('\n[2/3] Performing 4x super-resolution via upscale()...');
+    upscaleStart = Date.now();
 
-  const { outputs, stats } = upscale({
-    modelId,
-    image: rawImage,
-    repeats: 1
-  });
+    let outputs;
+    let stats;
+    try {
+      ({ outputs, stats } = upscale({
+        modelId,
+        image: rawImage,
+        repeats: 1
+      }));
+    } catch (err) {
+      throw new Error(`Upscale failed to start (OOM or invalid image?): ${err.message}`);
+    }
+    if (!outputs || !stats) {
+      throw new Error('Upscale failed: SDK returned no outputs/stats (OOM or internal error).');
+    }
 
-  const [upscaledBuffer] = await outputs;
-  const upscaleStats = await stats;
-  const upscaleDuration = ((Date.now() - upscaleStart) / 1000).toFixed(2);
-  console.log(`  [PASS] Super-resolution completed in ${upscaleDuration}s!`);
-  if (upscaleStats) {
-    console.log('  [Stats]', upscaleStats);
+    let resolvedOutputs;
+    try {
+      resolvedOutputs = await outputs;
+      upscaleStats = await stats;
+    } catch (err) {
+      throw new Error(`Upscale failed (OOM or corrupt image?): ${err.message}`);
+    }
+    [upscaledBuffer] = resolvedOutputs || [];
+    if (!upscaledBuffer || upscaledBuffer.length === 0) {
+      throw new Error('Upscale failed: empty output (OOM or corrupt image?).');
+    }
+    upscaleDuration = ((Date.now() - upscaleStart) / 1000).toFixed(2);
+    console.log(`  [PASS] Super-resolution completed in ${upscaleDuration}s!`);
+    if (upscaleStats) {
+      console.log('  [Stats]', upscaleStats);
+    }
+
+    // Ensure output directory exists
+    const outDir = path.dirname(outputPath);
+    if (!fs.existsSync(outDir)) {
+      fs.mkdirSync(outDir, { recursive: true });
+    }
+
+    fs.writeFileSync(outputPath, upscaledBuffer);
+    console.log(`  [Saved] ${outputPath} (${(upscaledBuffer.length / 1024).toFixed(1)} KB)`);
+  } finally {
+    // 3. Unload Model — always release even on upscale/write error
+    if (modelId) {
+      console.log('\n[3/3] Releasing VRAM / RAM resources via unloadModel()...');
+      try {
+        await unloadModel({ modelId });
+        console.log('  [PASS] Model memory deallocated cleanly.');
+      } catch (unloadErr) {
+        console.warn(`  [Warn] unloadModel failed: ${unloadErr.message}`);
+      }
+    }
   }
-
-  // Ensure output directory exists
-  const outDir = path.dirname(outputPath);
-  if (!fs.existsSync(outDir)) {
-    fs.mkdirSync(outDir, { recursive: true });
-  }
-
-  fs.writeFileSync(outputPath, upscaledBuffer);
-  console.log(`  [Saved] ${outputPath} (${(upscaledBuffer.length / 1024).toFixed(1)} KB)`);
-
-  // 3. Unload Model
-  console.log('\n[3/3] Releasing VRAM / RAM resources via unloadModel()...');
-  await unloadModel({ modelId });
-  console.log('  [PASS] Model memory deallocated cleanly.');
 
   console.log('\n======================================================');
   console.log('  ✨ UPSCALING COMPLETED SUCCESSFULLY WITH QVAC SDK');
@@ -166,7 +215,19 @@ let isProcessing = false;
  */
 function startLocalServer(port = 3000) {
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    let url;
+    try {
+      url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
+    } catch {
+      res.writeHead(400);
+      res.end('Bad request');
+      return;
+    }
+    if (url.pathname.includes('..') || url.pathname.includes('%2e') || url.pathname.includes('%2E')) {
+      res.writeHead(404);
+      res.end('Not found');
+      return;
+    }
 
     // CORS headers for local origin
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -180,9 +241,20 @@ function startLocalServer(port = 3000) {
     }
 
     if (url.pathname === '/' || url.pathname === '/index.html') {
-      const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'index.html'));
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(html);
+      const indexPath = path.join(ROOT_DIR, 'public', 'index.html');
+      try {
+        if (!fs.existsSync(indexPath)) {
+          res.writeHead(404);
+          res.end('UI template not found.');
+          return;
+        }
+        const html = fs.readFileSync(indexPath);
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
+      } catch (err) {
+        if (!res.headersSent) res.writeHead(500);
+        res.end(`Failed to serve UI: ${err.message}`);
+      }
     } else if (url.pathname === '/studio' || url.pathname === '/studio.html') {
       const studioPath = path.join(ROOT_DIR, 'public', 'studio.html');
       if (fs.existsSync(studioPath)) {
@@ -210,7 +282,12 @@ function startLocalServer(port = 3000) {
         res.writeHead(404);
         res.end('Upscaled image not yet generated. Run upscale first.');
       }
-    } else if (url.pathname === '/api/upscale' && req.method === 'POST') {
+    } else if (url.pathname === '/api/upscale') {
+      if (req.method !== 'POST') {
+        res.writeHead(405, { 'Content-Type': 'application/json', Allow: 'POST' });
+        res.end(JSON.stringify({ success: false, error: 'Method Not Allowed: use POST /api/upscale' }));
+        return;
+      }
       if (isProcessing) {
         res.writeHead(429, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
@@ -222,18 +299,44 @@ function startLocalServer(port = 3000) {
 
       isProcessing = true;
       let body = '';
-      req.on('data', (chunk) => { body += chunk; });
+      req.on('data', (chunk) => {
+        body += chunk;
+        if (body.length > 50 * 1024 * 1024) {
+          body = '';
+          if (!res.headersSent) {
+            res.writeHead(413, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Payload too large.' }));
+          }
+          req.destroy();
+        }
+      });
+      req.on('error', () => { isProcessing = false; });
       req.on('end', async () => {
         try {
           let inputData = path.join(ROOT_DIR, 'sample.jpg');
           if (body) {
+            let parsed;
             try {
-              const parsed = JSON.parse(body);
-              if (parsed.image) {
-                const base64Clean = parsed.image.replace(/^data:image\/\w+;base64,/, '');
-                inputData = Buffer.from(base64Clean, 'base64');
+              parsed = JSON.parse(body);
+            } catch {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Invalid JSON body.' }));
+              return;
+            }
+            if (parsed && typeof parsed.image === 'string' && parsed.image.length > 0) {
+              const base64Clean = parsed.image.replace(/^data:image\/\w+;base64,/, '');
+              const decoded = Buffer.from(base64Clean, 'base64');
+              if (decoded.length === 0) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Invalid image data: empty buffer.' }));
+                return;
               }
-            } catch {}
+              inputData = decoded;
+            } else if (parsed && parsed.image !== undefined) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: false, error: 'Invalid image field: must be a base64 string.' }));
+              return;
+            }
           }
           const outputPath = path.join(ROOT_DIR, 'outputs', 'upscaled.png');
           const result = await runUpscale(inputData, outputPath);
@@ -257,6 +360,11 @@ function startLocalServer(port = 3000) {
         }
       });
     } else if (url.pathname === '/api/status') {
+      if (req.method !== 'GET') {
+        res.writeHead(405, { 'Content-Type': 'application/json', Allow: 'GET' });
+        res.end(JSON.stringify({ success: false, error: 'Method Not Allowed: use GET /api/status' }));
+        return;
+      }
       const hasUpscaled = fs.existsSync(path.join(ROOT_DIR, 'outputs', 'upscaled.png'));
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
@@ -274,19 +382,59 @@ function startLocalServer(port = 3000) {
     }
   });
 
+  server.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      console.error(`✖ Port ${port} is already in use (127.0.0.1:${port}). Stop the other process or retry with a free port.`);
+      process.exit(1);
+    } else {
+      console.error('✖ Server error:', err?.message || err);
+    }
+  });
+
   server.listen(port, '127.0.0.1', () => {
     console.log(`🌐 PixelRevive UI running at: http://127.0.0.1:${port}`);
     console.log(`   Interactive Before/After slider ready in browser.`);
   });
+  return server;
 }
 
 // Entry point detection
+function printUsage() {
+  console.log(`Usage: node src/index.js [--cli] [--serve] [--help] [input] [output]
+
+  input   Input image path (default: sample.jpg). Quote paths with spaces: "my photos/a.jpg"
+  output  Output PNG path (default: outputs/upscaled.png)
+  --cli   Run upscale once and exit (exit 0 on success, 1 on error)
+  --serve Start local UI server only (http://127.0.0.1:3000)
+  --help, -h Show this help and exit 0`);
+}
+
 async function main() {
   const rawArgs = process.argv.slice(2);
+  if (rawArgs.includes('--help') || rawArgs.includes('-h')) {
+    printUsage();
+    return;
+  }
   const isCliOnly = rawArgs.includes('--cli');
   const isServeOnly = rawArgs.includes('--serve');
+  if (isCliOnly && isServeOnly) {
+    console.error('✖ Error: --cli and --serve are mutually exclusive.');
+    printUsage();
+    process.exit(1);
+  }
   const args = rawArgs.filter((a) => a !== '--cli' && a !== '--serve');
-  const positionals = args.filter((a) => !a.startsWith('--'));
+  const unknownFlags = args.filter((a) => a.startsWith('-'));
+  if (unknownFlags.length > 0) {
+    console.error(`✖ Error: unknown option(s): ${unknownFlags.join(', ')}`);
+    printUsage();
+    process.exit(1);
+  }
+  const positionals = args.filter((a) => !a.startsWith('-'));
+  if (positionals.length > 2) {
+    console.error(`✖ Error: too many arguments (expected at most 2, got ${positionals.length}).`);
+    printUsage();
+    process.exit(1);
+  }
 
   const defaultInput = path.join(ROOT_DIR, 'sample.jpg');
   const targetInput = positionals[0] || defaultInput;
@@ -316,4 +464,9 @@ async function main() {
   }
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  main().catch((err) => {
+    console.error('✖ Error:', err?.message || err);
+    process.exit(1);
+  });
+}

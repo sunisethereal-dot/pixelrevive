@@ -9,13 +9,13 @@ samples/low-res.jpg
 Then run:
 
 ```bash
-npm start samples/low-res.jpg
-# output -> outputs/high-res.jpg
+npm start -- samples/low-res.jpg
+# output -> outputs/upscaled.png
 ```
 
 Notes:
 
 - Do NOT commit large binaries (`*.jpg`, `*.png`, `outputs/`) to git — keep this folder lightweight.
-- `samples/low-res.jpg` and `outputs/*` should be gitignored.
+- `outputs/*.png` and `outputs/*.jpg` are gitignored (see `.gitignore`); `samples/low-res.jpg` is tracked as a lightweight test asset.
 - Use a small (<1 MB) JPG for quick local testing.
-- Screenshot in root `README.md` references this file as a placeholder until you add your own before/after comparison.
+- Root `README.md` shows `screenshot.png`; replace it with your own before/after comparison when ready.

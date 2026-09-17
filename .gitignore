@@ -14,8 +14,21 @@ outputs/*.jpg
 *.bin
 docs.txt
 QVAC.md
-SUBMISSION.md
 
 # OS Cruft
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# Headless-test scratch screenshots (keep screenshot.png submission proof)
+current_view.png
+current-view.png
+*current_view*.png
+*current-view*.png
+headless-*.png
+
+# Root test-image scratch (keep sample.jpg, screenshot.png)
+/sample_*.jpg
+/sample_*.png
+/test_*.png
+/test_*.jpg

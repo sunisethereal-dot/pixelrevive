@@ -4,9 +4,14 @@
   "description": "On-device 4x AI image super-resolution app powered by Tether's QVAC SDK (@qvac/sdk)",
   "type": "module",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=22.17.0"
+  },
   "scripts": {
     "start": "node src/index.js",
-    "upscale": "node src/index.js"
+    "upscale": "node src/index.js --cli",
+    "dev": "node src/index.js --serve",
+    "ui": "node src/index.js --serve"
   },
   "homepage": "https://sunisethereal-dot.github.io/pixelrevive",
   "repository": {

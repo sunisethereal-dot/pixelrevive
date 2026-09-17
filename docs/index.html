@@ -43,12 +43,10 @@
 
     body {
       background-color: var(--studio-bg);
-      background-image: 
+      background-image:
         radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.12), transparent 45%),
-        radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.06), transparent 50%),
-        linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-      background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+        radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.06), transparent 50%);
+      background-size: 100% 100%, 100% 100%;
       color: var(--studio-text-head);
       font-family: var(--font-sans);
       min-height: 100vh;
@@ -70,8 +68,6 @@
     /* Top Navigation Header */
     .studio-header {
       background: rgba(15, 19, 29, 0.85);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
       border: 1px solid var(--studio-border);
       border-radius: 14px;
       padding: 14px 20px;
@@ -92,7 +88,7 @@
       width: 32px;
       height: 32px;
       border-radius: 9px;
-      background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+      background: #6366f1;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -356,12 +352,7 @@
     .studio-scanline {
       position: absolute;
       inset: 0;
-      background: linear-gradient(180deg, 
-        transparent 0%, 
-        rgba(99, 102, 241, 0.2) 50%, 
-        rgba(6, 182, 212, 0.5) 51%, 
-        transparent 53%);
-      background-size: 100% 200%;
+      background-color: rgba(99, 102, 241, 0.25);
       pointer-events: none;
       z-index: 4;
       opacity: 0;
@@ -478,7 +469,7 @@
 
     /* Action Buttons */
     .studio-btn-run {
-      background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+      background: #6366f1;
       color: #fff;
       border: none;
       padding: 12px 18px;
@@ -690,6 +681,19 @@
       color: #020617;
       padding: 10px;
     }
+
+    :focus-visible {
+      outline: 2px solid #818cf8;
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 360px) {
+      body { padding: 12px 8px 28px; }
+      .studio-header { flex-direction: column; align-items: flex-start; }
+      .studio-header-right { flex-wrap: wrap; }
+      .studio-slider-stage { height: 260px; }
+      .studio-dock-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -714,10 +718,10 @@
       </div>
 
       <div class="studio-header-right">
-        <a href="https://qvac.tether.io" target="_blank" rel="noopener noreferrer" class="studio-airgap-badge" style="text-decoration: none; color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); font-weight: 600;">
+        <span class="studio-airgap-badge" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); font-weight: 600;">
           <span class="studio-pulse-dot" style="background: #38bdf8; box-shadow: 0 0 8px #38bdf8;"></span>
           <span>POWERED BY TETHER QVAC SDK</span>
-        </a>
+        </span>
         <div class="studio-airgap-badge">
           <span class="studio-pulse-dot"></span>
           <span>AIR-GAPPED (0.00 KB EGRESS)</span>
@@ -927,14 +931,24 @@ npm start</code>
         const cmd = document.getElementById('localRunCmd');
         const text = cmd ? cmd.textContent : '';
         try {
+          if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('clipboard unavailable');
           await navigator.clipboard.writeText(text);
           localRunCopy.textContent = 'Copied!';
         } catch (err) {
           const ta = document.createElement('textarea');
           ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.top = '0';
+          ta.style.opacity = '0';
           document.body.appendChild(ta);
+          ta.focus();
           ta.select();
-          try { document.execCommand('copy'); localRunCopy.textContent = 'Copied!'; }
+          try { ta.setSelectionRange(0, ta.value.length); } catch {}
+          try {
+            const ok = document.execCommand('copy');
+            localRunCopy.textContent = ok ? 'Copied!' : 'Copy failed';
+          }
           catch (e2) { localRunCopy.textContent = 'Copy failed'; }
           document.body.removeChild(ta);
         }
@@ -950,12 +964,17 @@ npm start</code>
 
       // 1. Slider Engine
       function setSplit(pct) {
-        currentSplit = Math.max(0, Math.min(100, pct));
+        const num = Number(pct);
+        if (!Number.isFinite(num)) return;
+        currentSplit = Math.max(0, Math.min(100, num));
         stage.style.setProperty('--split-pos', currentSplit + '%');
+        if (typeof syncSnapButtons === 'function') syncSnapButtons();
       }
 
       function updateSplitFromPointer(e) {
         const rect = stage.getBoundingClientRect();
+        if (!rect || !Number.isFinite(rect.width) || rect.width <= 0) return;
+        if (!e || !Number.isFinite(e.clientX)) return;
         const offsetX = e.clientX - rect.left;
         setSplit((offsetX / rect.width) * 100);
       }
@@ -974,11 +993,19 @@ npm start</code>
       function stopDrag(e) {
         if (!isDragging) return;
         isDragging = false;
-        try { stage.releasePointerCapture(e.pointerId); } catch {}
+        try {
+          if (e && e.pointerId !== undefined && stage.hasPointerCapture && stage.hasPointerCapture(e.pointerId)) {
+            stage.releasePointerCapture(e.pointerId);
+          }
+        } catch {}
       }
 
       stage.addEventListener('pointerup', stopDrag);
       stage.addEventListener('pointercancel', stopDrag);
+      stage.addEventListener('pointerleave', stopDrag);
+      stage.addEventListener('lostpointercapture', () => { isDragging = false; });
+      window.addEventListener('pointerup', () => { isDragging = false; });
+      window.addEventListener('pointercancel', () => { isDragging = false; });
 
       puckHandle.addEventListener('dblclick', (e) => {
         e.stopPropagation();
@@ -986,6 +1013,13 @@ npm start</code>
       });
 
       // Quick Snaps
+      function syncSnapButtons() {
+        const pairs = [['btnSnap25', 25], ['btnSnap50', 50], ['btnSnap75', 75]];
+        pairs.forEach(([id, val]) => {
+          const b = document.getElementById(id);
+          if (b) b.classList.toggle('active', Math.round(currentSplit) === val);
+        });
+      }
       document.getElementById('btnSnap25').addEventListener('click', () => setSplit(25));
       document.getElementById('btnSnap50').addEventListener('click', () => setSplit(50));
       document.getElementById('btnSnap75').addEventListener('click', () => setSplit(75));
@@ -994,28 +1028,38 @@ npm start</code>
       const btnZoomToggle = document.getElementById('btnZoomToggle');
       let isZoomed = false;
       if (btnZoomToggle) {
+        btnZoomToggle.setAttribute('aria-pressed', 'false');
         btnZoomToggle.addEventListener('click', () => {
           isZoomed = !isZoomed;
+          const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          stage.querySelectorAll('img').forEach((img) => { img.style.transition = reduceMotion ? 'none' : ''; });
           stage.classList.toggle('zoomed', isZoomed);
           btnZoomToggle.classList.toggle('active', isZoomed);
+          btnZoomToggle.setAttribute('aria-pressed', String(isZoomed));
           btnZoomToggle.textContent = isZoomed ? '🔍 1x Fit' : '🔍 2.2x Zoom';
           showAlert(isZoomed ? '🔍 2.2x Macro Inspector: Drag divider to inspect eyelashes, iris reflections & skin pores!' : '📐 1x Viewport Fit restored.', 'info');
         });
       }
 
       // Hold to View 1x
+      let isHolding = false;
       function startHold() {
+        if (isHolding) return;
+        isHolding = true;
         lastSplitBeforeHold = currentSplit;
         setSplit(100);
       }
       function endHold() {
+        if (!isHolding) return;
+        isHolding = false;
         setSplit(lastSplitBeforeHold);
       }
       btnHold1x.addEventListener('mousedown', startHold);
       btnHold1x.addEventListener('mouseup', endHold);
       btnHold1x.addEventListener('mouseleave', endHold);
-      btnHold1x.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); });
+      btnHold1x.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); }, { passive: false });
       btnHold1x.addEventListener('touchend', endHold);
+      btnHold1x.addEventListener('touchcancel', endHold);
 
       // Keyboard Controls
       window.addEventListener('keydown', (e) => {
@@ -1057,10 +1101,33 @@ npm start</code>
 
       fileInput.addEventListener('change', (e) => {
         if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+        e.target.value = '';
       });
 
       function handleFile(file) {
-        if (!file.type.startsWith('image/')) return;
+        if (!file) return;
+        if (!file.type || !file.type.startsWith('image/')) {
+          showAlert('⚠️ That file is not a supported image. Please choose a JPG, PNG, or WebP image.', 'warn');
+          statusLabel.textContent = 'INVALID FILE';
+          statusDot.className = 'studio-status-dot warning';
+          if (fileInput) fileInput.value = '';
+          return;
+        }
+        if (!file.size) {
+          showAlert('⚠️ That image file is empty (0 bytes). Please choose a valid image.', 'warn');
+          statusLabel.textContent = 'INVALID FILE';
+          statusDot.className = 'studio-status-dot warning';
+          if (fileInput) fileInput.value = '';
+          return;
+        }
+        const MAX_BYTES = 15 * 1024 * 1024;
+        if (file.size > MAX_BYTES) {
+          showAlert(`⚠️ That image is ${(file.size / 1024 / 1024).toFixed(1)} MB — larger than the 15 MB limit. Please choose a smaller image for on-device upscaling.`, 'warn');
+          statusLabel.textContent = 'FILE TOO LARGE';
+          statusDot.className = 'studio-status-dot warning';
+          if (fileInput) fileInput.value = '';
+          return;
+        }
         hideAlert();
 
         const reader = new FileReader();
@@ -1084,19 +1151,31 @@ npm start</code>
             statusDot.className = 'studio-status-dot warning';
             showAlert('⚡ Heads-up: this web demo only enhances its built-in sample — the AI model lives on your machine, not on this static page. Your photo never uploads anywhere. To upscale it, run PixelRevive locally with "npm start" (100% on-device, 0.00 KB cloud egress).', 'warn');
           }
+          if (fileInput) fileInput.value = '';
+        };
+        reader.onerror = () => {
+          showAlert('⚠️ Could not read that image file. Please try a different file.', 'warn');
+          statusLabel.textContent = 'FILE READ FAILED';
+          statusDot.className = 'studio-status-dot error';
+          if (fileInput) fileInput.value = '';
         };
         reader.readAsDataURL(file);
       }
 
       btnResetSample.addEventListener('click', () => {
         hideAlert();
+        hideLocalRunModal();
         activeCustomBase64 = null;
+        if (fileInput) fileInput.value = '';
         beforeImg.src = 'sample.jpg?v=2';
         afterImg.src = 'outputs/upscaled.png?v=2';
         chipFileName.textContent = 'sample.jpg';
         chipFileMeta.textContent = '256×256 • Ready';
+        resBeforeBadge.textContent = '256 × 256 px';
+        resAfterBadge.textContent = '1024 × 1024 px';
         statusLabel.textContent = 'SYSTEM READY';
         statusDot.className = 'studio-status-dot';
+        if (latencyTimer) latencyTimer.textContent = '0.00s';
         setSplit(50);
       });
 
@@ -1120,6 +1199,14 @@ npm start</code>
         }
       });
 
+      beforeImg.addEventListener('error', () => {
+        resBeforeBadge.textContent = 'Load failed';
+      });
+
+      afterImg.addEventListener('error', () => {
+        resAfterBadge.textContent = 'Load failed';
+      });
+
       // 3. Execution Dispatch via /api/upscale (Hybrid Local Engine + Static Demo Support)
       btnRunInference.addEventListener('click', async () => {
         hideAlert();
@@ -1134,26 +1221,43 @@ npm start</code>
           latencyTimer.textContent = `${((Date.now() - startTime) / 1000).toFixed(2)}s`;
         }, 50);
 
-        const isStaticHost = window.location.hostname.includes('github.io') || 
-                             window.location.protocol === 'file:';
+        const hostname = window.location.hostname || '';
+        const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
+        const isStaticHost = window.location.protocol === 'file:' ||
+                             hostname.includes('github.io') || !isLocalHost;
 
         // Static Showcase Mode (GitHub Pages web demo)
         if (isStaticHost) {
           if (!activeCustomBase64) {
             // Interactive 4x Real-ESRGAN super-resolution demo
             setTimeout(() => {
-              clearInterval(latencyInterval);
-              latencyTimer.textContent = '1.92s';
-              afterImg.src = 'outputs/upscaled.png?v=' + Date.now();
-              statusLabel.textContent = 'NEURAL SYNTHESIS COMPLETE';
-              statusDot.className = 'studio-status-dot';
-              chipFileMeta.textContent = '4x Enhanced • 1024×1024';
-              resAfterBadge.textContent = '1024 × 1024 px';
-              setSplit(50);
-              btnRunInference.disabled = false;
-              btnRunText.textContent = 'Run';
-              scanlineBeam.classList.remove('active');
-              showAlert('✨ Live Web Demo: 4x Real-ESRGAN neural synthesis applied! For custom files with on-device hardware inference, launch PixelRevive locally via npm start.', 'success');
+              const demoSrc = 'outputs/upscaled.png?v=' + Date.now();
+              const preload = new Image();
+              preload.onload = () => {
+                clearInterval(latencyInterval);
+                latencyTimer.textContent = '1.92s';
+                afterImg.src = demoSrc;
+                statusLabel.textContent = 'NEURAL SYNTHESIS COMPLETE';
+                statusDot.className = 'studio-status-dot';
+                chipFileMeta.textContent = '4x Enhanced • 1024×1024';
+                resAfterBadge.textContent = '1024 × 1024 px';
+                setSplit(50);
+                btnRunInference.disabled = false;
+                btnRunText.textContent = 'Run';
+                scanlineBeam.classList.remove('active');
+                showAlert('✨ Live Web Demo: 4x Real-ESRGAN neural synthesis applied! For custom files with on-device hardware inference, launch PixelRevive locally via npm start.', 'success');
+              };
+              preload.onerror = () => {
+                clearInterval(latencyInterval);
+                latencyTimer.textContent = '1.92s';
+                statusLabel.textContent = 'DEMO ASSET MISSING';
+                statusDot.className = 'studio-status-dot warning';
+                btnRunInference.disabled = false;
+                btnRunText.textContent = 'Run';
+                scanlineBeam.classList.remove('active');
+                showAlert('⚠️ Demo asset outputs/upscaled.png was not found.', 'warn');
+              };
+              preload.src = demoSrc;
             }, 1800);
             return;
           } else {
@@ -1165,7 +1269,7 @@ npm start</code>
               btnRunInference.disabled = false;
               btnRunText.textContent = 'Run';
               scanlineBeam.classList.remove('active');
-              showLocalRunModal();
+              if (typeof showLocalRunModal === 'function' && !(localRunOverlay && localRunOverlay.classList.contains('open'))) showLocalRunModal();
             }, 500);
             return;
           }
@@ -1181,23 +1285,31 @@ npm start</code>
             body: JSON.stringify(payload)
           });
 
-          const data = await res.json();
+          let data;
+          try {
+            data = await res.json();
+          } catch (_parseErr) {
+            statusLabel.textContent = 'INFERENCE ERROR';
+            statusDot.className = 'studio-status-dot warning';
+            showAlert('⚠️ Local engine returned a non-JSON response.', 'warn');
+            return;
+          }
           if (data.success) {
             if (data.upscaledDataUrl) {
               afterImg.src = data.upscaledDataUrl;
             } else {
-              afterImg.src = '/outputs/upscaled.png?t=' + Date.now();
+              afterImg.src = 'outputs/upscaled.png?t=' + Date.now();
             }
 
-            const duration = data.result?.upscaleDuration || ((Date.now() - startTime) / 1000).toFixed(2);
-            latencyTimer.textContent = `${duration}s`;
+            const rawDuration = data.result?.upscaleDuration ?? ((Date.now() - startTime) / 1000).toFixed(2);
+            latencyTimer.textContent = String(rawDuration).endsWith('s') ? String(rawDuration) : `${rawDuration}s`;
             statusLabel.textContent = 'INFERENCE COMPLETED';
             statusDot.className = 'studio-status-dot';
             chipFileMeta.textContent = '4x Enhanced';
             setSplit(50);
             showAlert('✅ On-device 4x super-resolution completed with 0.00 KB cloud egress.', 'success');
           } else {
-            statusLabel.textContent = data.error?.includes('processing') ? 'ENGINE BUSY' : 'INFERENCE ERROR';
+            statusLabel.textContent = (typeof data.error === 'string' && data.error.includes('processing')) ? 'ENGINE BUSY' : 'INFERENCE ERROR';
             statusDot.className = 'studio-status-dot warning';
             showAlert(`⚠️ ${data.error || 'Upscaling failed on local engine.'}`, 'warn');
           }
@@ -1215,12 +1327,24 @@ npm start</code>
 
       // Download Action
       btnExport.addEventListener('click', () => {
-        const a = document.createElement('a');
-        a.href = afterImg.src;
-        a.download = 'pixelrevive-esrgan-4x.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        if (!afterImg || !afterImg.getAttribute('src')) {
+          showAlert('⚠️ No upscaled image available to download yet.', 'warn');
+          return;
+        }
+        if (afterImg.naturalWidth === 0 && !String(afterImg.src).startsWith('data:')) {
+          showAlert('⚠️ Upscaled image failed to load — cannot download yet.', 'warn');
+          return;
+        }
+        try {
+          const a = document.createElement('a');
+          a.href = afterImg.currentSrc || afterImg.src;
+          a.download = 'pixelrevive-esrgan-4x.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } catch (err) {
+          showAlert('⚠️ Download failed in this browser. Try right-click → Save image.', 'warn');
+        }
       });
 
       setSplit(50);
