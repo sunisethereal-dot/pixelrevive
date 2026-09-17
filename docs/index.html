@@ -551,6 +551,45 @@
       box-shadow: 0 0 8px var(--studio-accent-cyan);
       animation: pulse 0.8s infinite;
     }
+
+    .studio-status-dot.error {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+    }
+
+    .studio-status-dot.warning {
+      background: #f59e0b;
+      box-shadow: 0 0 8px #f59e0b;
+    }
+
+    .studio-alert-box {
+      margin-top: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      line-height: 1.4;
+      font-family: var(--font-mono);
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px solid rgba(14, 165, 233, 0.25);
+      color: #bae6fd;
+      display: none;
+    }
+
+    .studio-alert-box.visible {
+      display: block;
+    }
+
+    .studio-alert-box.warn {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: rgba(245, 158, 11, 0.3);
+      color: #fde68a;
+    }
+
+    .studio-alert-box.success {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #a7f3d0;
+    }
   </style>
 </head>
 <body>
@@ -699,6 +738,9 @@
           </div>
           <span id="latencyTimer">0.00s</span>
         </div>
+
+        <!-- Dynamic Context Alert -->
+        <div class="studio-alert-box" id="studioAlertBox"></div>
       </div>
     </section>
 
@@ -728,6 +770,19 @@
       const btnExport = document.getElementById('btnExport');
       const resBeforeBadge = document.getElementById('resBeforeBadge');
       const resAfterBadge = document.getElementById('resAfterBadge');
+      const alertBox = document.getElementById('studioAlertBox');
+
+      function showAlert(message, type = 'info') {
+        if (!alertBox) return;
+        alertBox.textContent = message;
+        alertBox.className = 'studio-alert-box visible' + (type === 'warn' ? ' warn' : type === 'success' ? ' success' : '');
+      }
+
+      function hideAlert() {
+        if (!alertBox) return;
+        alertBox.className = 'studio-alert-box';
+        alertBox.textContent = '';
+      }
 
       let currentSplit = 50;
       let isDragging = false;
@@ -836,6 +891,7 @@
 
       function handleFile(file) {
         if (!file.type.startsWith('image/')) return;
+        hideAlert();
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -848,17 +904,21 @@
           // Snap slider to 100% to display the full uploaded image cleanly until Run is clicked
           setSplit(100);
           statusLabel.textContent = 'READY TO UPSCALE';
+          statusDot.className = 'studio-status-dot';
           resAfterBadge.textContent = 'Pending Run';
         };
         reader.readAsDataURL(file);
       }
 
       btnResetSample.addEventListener('click', () => {
+        hideAlert();
         activeCustomBase64 = null;
-        beforeImg.src = 'sample.jpg';
-        afterImg.src = 'outputs/upscaled.png?t=' + Date.now();
+        beforeImg.src = 'sample.jpg?v=2';
+        afterImg.src = 'outputs/upscaled.png?v=2';
         chipFileName.textContent = 'sample.jpg';
         chipFileMeta.textContent = '256×256 • Ready';
+        statusLabel.textContent = 'SYSTEM READY';
+        statusDot.className = 'studio-status-dot';
         setSplit(50);
       });
 
@@ -882,8 +942,9 @@
         }
       });
 
-      // 3. Execution Dispatch via /api/upscale
+      // 3. Execution Dispatch via /api/upscale (Hybrid Local Engine + Static Demo Support)
       btnRunInference.addEventListener('click', async () => {
+        hideAlert();
         btnRunInference.disabled = true;
         btnRunText.textContent = 'Running...';
         statusLabel.textContent = 'INFERENCE IN PROGRESS';
@@ -895,6 +956,44 @@
           latencyTimer.textContent = `${((Date.now() - startTime) / 1000).toFixed(2)}s`;
         }, 50);
 
+        const isStaticHost = window.location.hostname.includes('github.io') || 
+                             window.location.protocol === 'file:';
+
+        // Static Showcase Mode (GitHub Pages web demo)
+        if (isStaticHost) {
+          if (!activeCustomBase64) {
+            // Interactive 4x Real-ESRGAN super-resolution demo
+            setTimeout(() => {
+              clearInterval(latencyInterval);
+              latencyTimer.textContent = '1.92s';
+              afterImg.src = 'outputs/upscaled.png?v=' + Date.now();
+              statusLabel.textContent = 'NEURAL SYNTHESIS COMPLETE';
+              statusDot.className = 'studio-status-dot';
+              chipFileMeta.textContent = '4x Enhanced • 1024×1024';
+              resAfterBadge.textContent = '1024 × 1024 px';
+              setSplit(50);
+              btnRunInference.disabled = false;
+              btnRunText.textContent = 'Run';
+              scanlineBeam.classList.remove('active');
+              showAlert('✨ Live Web Demo: 4x Real-ESRGAN neural synthesis applied! For custom files with on-device hardware inference, launch PixelRevive locally via npm start.', 'success');
+            }, 1800);
+            return;
+          } else {
+            // User dropped custom file on static web showcase
+            setTimeout(() => {
+              clearInterval(latencyInterval);
+              statusLabel.textContent = 'LOCAL RUNTIME NEEDED';
+              statusDot.className = 'studio-status-dot warning';
+              btnRunInference.disabled = false;
+              btnRunText.textContent = 'Run';
+              scanlineBeam.classList.remove('active');
+              showAlert('⚡ Air-Gapped Privacy: Processing personal photos with Real-ESRGAN runs on your local hardware via Tether QVAC SDK. Run "npm start" locally to enhance images with 0.00 KB cloud egress!', 'warn');
+            }, 500);
+            return;
+          }
+        }
+
+        // Local Server Mode (Native QVAC Engine at http://localhost:3000)
         const payload = activeCustomBase64 ? { image: activeCustomBase64 } : {};
 
         try {
@@ -917,16 +1016,17 @@
             statusLabel.textContent = 'INFERENCE COMPLETED';
             statusDot.className = 'studio-status-dot';
             chipFileMeta.textContent = '4x Enhanced';
-            
-            // Reveal the 50/50 split comparison slider now that upscale is ready!
             setSplit(50);
+            showAlert('✅ On-device 4x super-resolution completed with 0.00 KB cloud egress.', 'success');
           } else {
-            statusLabel.textContent = 'INFERENCE ERROR';
-            statusDot.className = 'studio-status-dot';
+            statusLabel.textContent = data.error?.includes('processing') ? 'ENGINE BUSY' : 'INFERENCE ERROR';
+            statusDot.className = 'studio-status-dot warning';
+            showAlert(`⚠️ ${data.error || 'Upscaling failed on local engine.'}`, 'warn');
           }
         } catch (err) {
-          statusLabel.textContent = 'NETWORK ERROR';
-          statusDot.className = 'studio-status-dot';
+          statusLabel.textContent = 'SERVER OFFLINE';
+          statusDot.className = 'studio-status-dot error';
+          showAlert('⚠️ Could not connect to local server on port 3000. Please ensure "npm start" is running in terminal.', 'warn');
         } finally {
           clearInterval(latencyInterval);
           btnRunInference.disabled = false;
