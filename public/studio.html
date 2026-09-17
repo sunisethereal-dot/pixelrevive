@@ -937,6 +937,14 @@
           statusLabel.textContent = 'READY TO UPSCALE';
           statusDot.className = 'studio-status-dot';
           resAfterBadge.textContent = 'Pending Run';
+          // Static web demo cannot run the model: tell the user upfront (not only after Run)
+          // that custom photos need the local on-device engine.
+          if (window.location.hostname.includes('github.io') || window.location.protocol === 'file:') {
+            chipFileMeta.textContent = `${(file.size / 1024).toFixed(1)} KB • Needs local run`;
+            statusLabel.textContent = 'LOCAL RUN NEEDED';
+            statusDot.className = 'studio-status-dot warning';
+            showAlert('⚡ Heads-up: this web demo only enhances its built-in sample — the AI model lives on your machine, not on this static page. Your photo never uploads anywhere. To upscale it, run PixelRevive locally with "npm start" (100% on-device, 0.00 KB cloud egress).', 'warn');
+          }
         };
         reader.readAsDataURL(file);
       }
