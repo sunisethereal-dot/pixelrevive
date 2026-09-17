@@ -1,22 +1,34 @@
 {
   "name": "pixelrevive",
   "version": "1.0.0",
-  "description": "On-Device Image Super-Resolution & Restoration with QVAC SDK ESRGAN",
+  "description": "On-device 4x AI image super-resolution app powered by Tether's QVAC SDK (@qvac/sdk)",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "upscale": "node src/index.js"
   },
+  "homepage": "https://sunisethereal-dot.github.io/pixelrevive",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sunisethereal-dot/pixelrevive.git"
+  },
   "keywords": [
     "qvac",
+    "qvac-sdk",
+    "tether",
+    "tetherto",
+    "tetherto-qvac",
     "on-device-ai",
+    "real-esrgan",
     "esrgan",
     "super-resolution",
     "upscale",
+    "local-ai",
+    "air-gapped",
     "privacy-first"
   ],
-  "author": "Xi",
+  "author": "sunisethereal-dot <sunisethereal@gmail.com>",
   "license": "Apache-2.0",
   "dependencies": {
     "@qvac/sdk": "0.19.1"
