@@ -1,0 +1,18 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+
+# Generated outputs (keep .gitkeep, ignore big images)
+outputs/*.png
+outputs/*.jpg
+!outputs/.gitkeep
+
+# QVAC Local Model Cache
+.qvac/
+*.pth
+*.gguf
+*.bin
+
+# OS Cruft
+.DS_Store
+Thumbs.db

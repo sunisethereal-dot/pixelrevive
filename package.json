@@ -1,0 +1,24 @@
+{
+  "name": "pixelrevive",
+  "version": "1.0.0",
+  "description": "On-Device Image Super-Resolution & Restoration with QVAC SDK ESRGAN",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "upscale": "node src/index.js"
+  },
+  "keywords": [
+    "qvac",
+    "on-device-ai",
+    "esrgan",
+    "super-resolution",
+    "upscale",
+    "privacy-first"
+  ],
+  "author": "Xi",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@qvac/sdk": "0.19.1"
+  }
+}
