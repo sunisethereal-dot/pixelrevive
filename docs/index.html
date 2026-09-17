@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PixelRevive Studio // On-Device ESRGAN 4x</title>
+  <style>
+    /* ==========================================================================
+       PIXELREVIVE STUDIO DESIGN SYSTEM
+       ========================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --studio-bg: #090b10;
+      --studio-surface: #0f131d;
+      --studio-surface-card: #151a28;
+      --studio-elevated: #1d2438;
+      --studio-border: rgba(255, 255, 255, 0.08);
+      --studio-border-hover: rgba(99, 102, 241, 0.4);
+      --studio-border-active: #6366f1;
+
+      --studio-primary: #6366f1;
+      --studio-primary-glow: rgba(99, 102, 241, 0.35);
+      --studio-accent-cyan: #06b6d4;
+      --studio-accent-emerald: #10b981;
+
+      --studio-text-head: #ffffff;
+      --studio-text-body: #94a3b8;
+      --studio-text-dim: #64748b;
+
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+
+      --split-pos: 50%;
+    }
+
+    body {
+      background-color: var(--studio-bg);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.12), transparent 45%),
+        radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.06), transparent 50%),
+        linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+      color: var(--studio-text-head);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px 40px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .studio-shell {
+      width: 100%;
+      max-width: 980px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Top Navigation Header */
+    .studio-header {
+      background: rgba(15, 19, 29, 0.85);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--studio-border);
+      border-radius: 14px;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.8);
+    }
+
+    .studio-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .studio-logo-cube {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 14px var(--studio-primary-glow);
+    }
+
+    .studio-logo-cube svg {
+      width: 18px;
+      height: 18px;
+      color: #fff;
+    }
+
+    .studio-title-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .studio-brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .studio-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+      text-transform: uppercase;
+    }
+
+    .studio-brand-sub {
+      font-size: 11px;
+      color: var(--studio-text-body);
+    }
+
+    .studio-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .studio-airgap-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .studio-pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    .studio-link-back {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--studio-text-body);
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--studio-border);
+      transition: all 0.15s;
+    }
+
+    .studio-link-back:hover {
+      color: #fff;
+      border-color: var(--studio-primary);
+    }
+
+    /* Comparison Viewport Card */
+    .studio-viewport-card {
+      background: var(--studio-surface);
+      border: 1px solid var(--studio-border);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.85);
+    }
+
+    .studio-viewport-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--studio-border);
+    }
+
+    .studio-toolbar-side {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .studio-res-badge {
+      padding: 3px 8px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--studio-border);
+      color: var(--studio-text-body);
+    }
+
+    .studio-res-badge.highlight {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(99, 102, 241, 0.1);
+      color: #a5b4fc;
+    }
+
+    .studio-snaps {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .studio-snap-btn {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--studio-border);
+      color: var(--studio-text-body);
+      padding: 3px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .studio-snap-btn:hover {
+      border-color: var(--studio-primary);
+      color: #fff;
+    }
+
+    /* Comparison Stage */
+    .studio-slider-stage {
+      position: relative;
+      width: 100%;
+      height: 480px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--studio-border);
+      background: repeating-conic-gradient(#121622 0% 25%, #0d101a 0% 50%) 50% / 20px 20px;
+      user-select: none;
+      touch-action: none;
+      cursor: col-resize;
+    }
+
+    @media (max-width: 720px) {
+      .studio-slider-stage { height: 340px; }
+    }
+
+    .studio-stage-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .studio-stage-layer img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .studio-layer-before {
+      clip-path: polygon(0 0, var(--split-pos) 0, var(--split-pos) 100%, 0 100%);
+      z-index: 2;
+    }
+
+    .studio-pixelated {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* Divider & Handle Puck */
+    .studio-divider-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: var(--split-pos);
+      width: 2px;
+      transform: translateX(-50%);
+      background: #6366f1;
+      box-shadow: 0 0 12px #6366f1, 0 0 2px #fff;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .studio-puck {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #111420;
+      border: 1.5px solid #818cf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px rgba(99, 102, 241, 0.5), 0 4px 14px rgba(0, 0, 0, 0.8);
+      cursor: col-resize;
+      pointer-events: auto;
+      transition: transform 0.15s ease;
+    }
+
+    .studio-puck:hover {
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .studio-puck svg {
+      width: 14px;
+      height: 14px;
+      color: #a5b4fc;
+    }
+
+    /* Laser Scanline Beam */
+    .studio-scanline {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, 
+        transparent 0%, 
+        rgba(99, 102, 241, 0.2) 50%, 
+        rgba(6, 182, 212, 0.5) 51%, 
+        transparent 53%);
+      background-size: 100% 200%;
+      pointer-events: none;
+      z-index: 4;
+      opacity: 0;
+    }
+
+    .studio-scanline.active {
+      opacity: 1;
+      animation: scanSweep 2s linear infinite;
+    }
+
+    @keyframes scanSweep {
+      0% { background-position: 0% -100%; }
+      100% { background-position: 0% 200%; }
+    }
+
+    .studio-viewport-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--studio-text-dim);
+      font-family: var(--font-mono);
+      padding-top: 4px;
+    }
+
+    /* Bottom Dock: Ingestion & Execution Cluster */
+    .studio-dock-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 760px) {
+      .studio-dock-grid { grid-template-columns: 1fr; }
+    }
+
+    .studio-panel {
+      background: var(--studio-surface);
+      border: 1px solid var(--studio-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .studio-panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--studio-text-body);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .studio-panel-title svg {
+      width: 14px;
+      height: 14px;
+      color: var(--studio-primary);
+    }
+
+    /* Drag & Drop Box */
+    .studio-drop-zone {
+      border: 1.5px dashed var(--studio-border);
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .studio-drop-zone:hover, .studio-drop-zone.drag-over {
+      border-color: var(--studio-primary);
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    .studio-drop-icon svg {
+      width: 22px;
+      height: 22px;
+      color: var(--studio-text-dim);
+    }
+
+    .studio-file-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .studio-chip-reset {
+      background: transparent;
+      border: none;
+      color: var(--studio-text-dim);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 4px;
+    }
+
+    .studio-chip-reset:hover {
+      color: #fff;
+    }
+
+    /* Action Buttons */
+    .studio-btn-run {
+      background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+      color: #fff;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 16px var(--studio-primary-glow);
+      transition: all 0.18s ease;
+    }
+
+    .studio-btn-run:hover:not(:disabled) {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .studio-btn-run:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .studio-btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .studio-btn-sec {
+      flex: 1;
+      background: var(--studio-surface-card);
+      border: 1px solid var(--studio-border);
+      color: #fff;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .studio-btn-sec:hover {
+      border-color: var(--studio-primary);
+      background: var(--studio-elevated);
+      color: #a5b4fc;
+    }
+
+    /* Telemetry Pill Strip */
+    .studio-telemetry-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #07090e;
+      border: 1px solid var(--studio-border);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--studio-text-dim);
+    }
+
+    .studio-status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #34d399;
+    }
+
+    .studio-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+
+    .studio-status-dot.busy {
+      background: var(--studio-accent-cyan);
+      box-shadow: 0 0 8px var(--studio-accent-cyan);
+      animation: pulse 0.8s infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="studio-shell">
+    
+    <!-- Top Header Bar -->
+    <header class="studio-header">
+      <div class="studio-brand">
+        <div class="studio-logo-cube">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="studio-title-wrap">
+          <h1 class="studio-brand-title">
+            PixelRevive Studio
+            <span class="studio-tag">ESRGAN 4x</span>
+          </h1>
+          <p class="studio-brand-sub">On-Device Neural Super-Resolution</p>
+        </div>
+      </div>
+
+      <div class="studio-header-right">
+        <div class="studio-airgap-badge">
+          <span class="studio-pulse-dot"></span>
+          <span>AIR-GAPPED (0.00 KB EGRESS)</span>
+        </div>
+        <a href="https://github.com/sunisethereal-dot/pixelrevive" class="studio-link-back">GitHub Repo ↗</a>
+      </div>
+    </header>
+
+    <!-- Comparison Viewport Card -->
+    <main class="studio-viewport-card">
+      <div class="studio-viewport-toolbar">
+        <div class="studio-toolbar-side">
+          <span style="font-weight: 600;">BEFORE (ORIGINAL 1X)</span>
+          <span class="studio-res-badge" id="resBeforeBadge">256 × 256 px</span>
+        </div>
+
+        <div class="studio-snaps">
+          <span style="color: var(--studio-text-dim); margin-right: 4px;">Split:</span>
+          <button type="button" class="studio-snap-btn" id="btnSnap25">25%</button>
+          <button type="button" class="studio-snap-btn" id="btnSnap50">50%</button>
+          <button type="button" class="studio-snap-btn" id="btnSnap75">75%</button>
+        </div>
+
+        <div class="studio-toolbar-side">
+          <span class="studio-res-badge highlight" id="resAfterBadge">1024 × 1024 px</span>
+          <span style="font-weight: 600;">AFTER (4X NEURAL SYNTHESIS)</span>
+        </div>
+      </div>
+
+      <!-- Comparison Slider Stage -->
+      <div class="studio-slider-stage" id="sliderStage">
+        <div class="studio-stage-layer studio-layer-after">
+          <img src="outputs/upscaled.png" alt="Super-resolved 4x output" id="afterImg" />
+        </div>
+        <div class="studio-stage-layer studio-layer-before" id="beforeLayer">
+          <img src="sample.jpg" alt="Low-res source image" class="studio-pixelated" id="beforeImg" />
+        </div>
+
+        <!-- Laser Scanline Animation -->
+        <div class="studio-scanline" id="scanlineBeam"></div>
+
+        <!-- Divider Line & Puck -->
+        <div class="studio-divider-line" id="dividerLine">
+          <div class="studio-puck" id="puckHandle" title="Drag to compare • Double click to center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 18 9 12 15 6"/>
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="studio-viewport-footer">
+        <span>Keyboard: <kbd style="color: var(--studio-accent-cyan);">←</kbd> <kbd style="color: var(--studio-accent-cyan);">→</kbd> arrows • Hold <kbd style="color: var(--studio-accent-cyan);">Space</kbd> for 1x</span>
+        <span>Tile Size: 128 (DirectML GPU)</span>
+      </div>
+    </main>
+
+    <!-- Bottom Dock: Ingestion & Controls -->
+    <section class="studio-dock-grid">
+      <!-- Ingestion Panel -->
+      <div class="studio-panel">
+        <div class="studio-panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          Asset Ingestion
+        </div>
+
+        <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" style="display: none;" />
+        <div class="studio-drop-zone" id="dropZone">
+          <div class="studio-drop-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          </div>
+          <span style="font-size: 12px; font-weight: 500;">Drop Custom Image to Upscale</span>
+          <span style="font-size: 10px; color: var(--studio-text-dim);">or click to select JPG, PNG locally</span>
+        </div>
+
+        <div class="studio-file-chip" id="fileChip">
+          <span id="chipFileName">sample.jpg</span>
+          <span id="chipFileMeta" style="color: #a5b4fc;">256×256 • Ready</span>
+          <button type="button" class="studio-chip-reset" id="btnResetSample" title="Restore sample asset">×</button>
+        </div>
+      </div>
+
+      <!-- Execution Panel -->
+      <div class="studio-panel">
+        <div class="studio-panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          Inference Engine
+        </div>
+
+        <button type="button" class="studio-btn-run" id="btnRunInference">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span id="btnRunText">Run</span>
+        </button>
+
+        <div class="studio-btn-row">
+          <button type="button" class="studio-btn-sec" id="btnHold1x">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+            Hold for 1x
+          </button>
+          <button type="button" class="studio-btn-sec" id="btnExport">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download 4K PNG
+          </button>
+        </div>
+
+        <!-- Telemetry Strip -->
+        <div class="studio-telemetry-bar">
+          <div class="studio-status-pill">
+            <span class="studio-status-dot" id="statusDot"></span>
+            <span id="statusLabel">SYSTEM READY</span>
+          </div>
+          <span id="latencyTimer">0.00s</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // DOM Elements
+      const stage = document.getElementById('sliderStage');
+      const beforeImg = document.getElementById('beforeImg');
+      const afterImg = document.getElementById('afterImg');
+      const puckHandle = document.getElementById('puckHandle');
+      const scanlineBeam = document.getElementById('scanlineBeam');
+      const btnRunInference = document.getElementById('btnRunInference');
+      const btnRunText = document.getElementById('btnRunText');
+      const statusDot = document.getElementById('statusDot');
+      const statusLabel = document.getElementById('statusLabel');
+      const latencyTimer = document.getElementById('latencyTimer');
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput');
+      const chipFileName = document.getElementById('chipFileName');
+      const chipFileMeta = document.getElementById('chipFileMeta');
+      const btnResetSample = document.getElementById('btnResetSample');
+      const btnHold1x = document.getElementById('btnHold1x');
+      const btnExport = document.getElementById('btnExport');
+      const resBeforeBadge = document.getElementById('resBeforeBadge');
+      const resAfterBadge = document.getElementById('resAfterBadge');
+
+      let currentSplit = 50;
+      let isDragging = false;
+      let lastSplitBeforeHold = 50;
+      let activeCustomBase64 = null;
+      let latencyInterval = null;
+      let startTime = 0;
+
+      // 1. Slider Engine
+      function setSplit(pct) {
+        currentSplit = Math.max(0, Math.min(100, pct));
+        stage.style.setProperty('--split-pos', currentSplit + '%');
+      }
+
+      function updateSplitFromPointer(e) {
+        const rect = stage.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        setSplit((offsetX / rect.width) * 100);
+      }
+
+      stage.addEventListener('pointerdown', (e) => {
+        isDragging = true;
+        try { stage.setPointerCapture(e.pointerId); } catch {}
+        updateSplitFromPointer(e);
+      });
+
+      stage.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        updateSplitFromPointer(e);
+      });
+
+      function stopDrag(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        try { stage.releasePointerCapture(e.pointerId); } catch {}
+      }
+
+      stage.addEventListener('pointerup', stopDrag);
+      stage.addEventListener('pointercancel', stopDrag);
+
+      puckHandle.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        setSplit(50);
+      });
+
+      // Quick Snaps
+      document.getElementById('btnSnap25').addEventListener('click', () => setSplit(25));
+      document.getElementById('btnSnap50').addEventListener('click', () => setSplit(50));
+      document.getElementById('btnSnap75').addEventListener('click', () => setSplit(75));
+
+      // Hold to View 1x
+      function startHold() {
+        lastSplitBeforeHold = currentSplit;
+        setSplit(100);
+      }
+      function endHold() {
+        setSplit(lastSplitBeforeHold);
+      }
+      btnHold1x.addEventListener('mousedown', startHold);
+      btnHold1x.addEventListener('mouseup', endHold);
+      btnHold1x.addEventListener('mouseleave', endHold);
+      btnHold1x.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); });
+      btnHold1x.addEventListener('touchend', endHold);
+
+      // Keyboard Controls
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') setSplit(currentSplit - 5);
+        if (e.key === 'ArrowRight') setSplit(currentSplit + 5);
+        if (e.key === ' ' && !e.repeat) {
+          e.preventDefault();
+          startHold();
+        }
+      });
+      window.addEventListener('keyup', (e) => {
+        if (e.key === ' ') {
+          e.preventDefault();
+          endHold();
+        }
+      });
+
+      // 2. Custom File Ingestion
+      dropZone.addEventListener('click', () => fileInput.click());
+
+      ['dragenter', 'dragover'].forEach((event) => {
+        dropZone.addEventListener(event, (e) => {
+          e.preventDefault();
+          dropZone.classList.add('drag-over');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach((event) => {
+        dropZone.addEventListener(event, (e) => {
+          e.preventDefault();
+          dropZone.classList.remove('drag-over');
+        });
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files && files[0]) handleFile(files[0]);
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+      });
+
+      function handleFile(file) {
+        if (!file.type.startsWith('image/')) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          activeCustomBase64 = e.target.result;
+          beforeImg.src = activeCustomBase64;
+          // Set afterImg to the uploaded image as well so the default picture is completely removed!
+          afterImg.src = activeCustomBase64;
+          chipFileName.textContent = file.name;
+          chipFileMeta.textContent = `${(file.size / 1024).toFixed(1)} KB • Ready (Click Run)`;
+          // Snap slider to 100% to display the full uploaded image cleanly until Run is clicked
+          setSplit(100);
+          statusLabel.textContent = 'READY TO UPSCALE';
+          resAfterBadge.textContent = 'Pending Run';
+        };
+        reader.readAsDataURL(file);
+      }
+
+      btnResetSample.addEventListener('click', () => {
+        activeCustomBase64 = null;
+        beforeImg.src = 'sample.jpg';
+        afterImg.src = 'outputs/upscaled.png?t=' + Date.now();
+        chipFileName.textContent = 'sample.jpg';
+        chipFileMeta.textContent = '256×256 • Ready';
+        setSplit(50);
+      });
+
+      // Dimension Sync
+      beforeImg.addEventListener('load', () => {
+        const w = beforeImg.naturalWidth;
+        const h = beforeImg.naturalHeight;
+        if (w && h) {
+          resBeforeBadge.textContent = `${w} × ${h} px`;
+          if (resAfterBadge.textContent !== 'Pending Run') {
+            resAfterBadge.textContent = `${w * 4} × ${h * 4} px`;
+          }
+        }
+      });
+
+      afterImg.addEventListener('load', () => {
+        const w = afterImg.naturalWidth;
+        const h = afterImg.naturalHeight;
+        if (w && h && afterImg.src !== beforeImg.src) {
+          resAfterBadge.textContent = `${w} × ${h} px`;
+        }
+      });
+
+      // 3. Execution Dispatch via /api/upscale
+      btnRunInference.addEventListener('click', async () => {
+        btnRunInference.disabled = true;
+        btnRunText.textContent = 'Running...';
+        statusLabel.textContent = 'INFERENCE IN PROGRESS';
+        statusDot.className = 'studio-status-dot busy';
+        scanlineBeam.classList.add('active');
+
+        startTime = Date.now();
+        latencyInterval = setInterval(() => {
+          latencyTimer.textContent = `${((Date.now() - startTime) / 1000).toFixed(2)}s`;
+        }, 50);
+
+        const payload = activeCustomBase64 ? { image: activeCustomBase64 } : {};
+
+        try {
+          const res = await fetch('/api/upscale', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            if (data.upscaledDataUrl) {
+              afterImg.src = data.upscaledDataUrl;
+            } else {
+              afterImg.src = '/outputs/upscaled.png?t=' + Date.now();
+            }
+
+            const duration = data.result?.upscaleDuration || ((Date.now() - startTime) / 1000).toFixed(2);
+            latencyTimer.textContent = `${duration}s`;
+            statusLabel.textContent = 'INFERENCE COMPLETED';
+            statusDot.className = 'studio-status-dot';
+            chipFileMeta.textContent = '4x Enhanced';
+            
+            // Reveal the 50/50 split comparison slider now that upscale is ready!
+            setSplit(50);
+          } else {
+            statusLabel.textContent = 'INFERENCE ERROR';
+            statusDot.className = 'studio-status-dot';
+          }
+        } catch (err) {
+          statusLabel.textContent = 'NETWORK ERROR';
+          statusDot.className = 'studio-status-dot';
+        } finally {
+          clearInterval(latencyInterval);
+          btnRunInference.disabled = false;
+          btnRunText.textContent = 'Run';
+          scanlineBeam.classList.remove('active');
+        }
+      });
+
+      // Download Action
+      btnExport.addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = afterImg.src;
+        a.download = 'pixelrevive-esrgan-4x.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      });
+
+      setSplit(50);
+    })();
+  </script>
+</body>
+</html>
