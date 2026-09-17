@@ -1,7 +1,7 @@
 # PixelRevive ✨ // On-Device ESRGAN Super-Resolution
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sunisethereal-dot/pixelrevive/main/screenshot.png" alt="PixelRevive Screenshot" width="100%" />
+  <img src="screenshot.png" alt="PixelRevive Screenshot" width="100%" />
 </p>
 
 <p align="center">
