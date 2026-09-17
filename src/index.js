@@ -299,10 +299,12 @@ function startLocalServer(port = 3000) {
 
       isProcessing = true;
       let body = '';
+      let aborted = false;
       req.on('data', (chunk) => {
         body += chunk;
         if (body.length > 50 * 1024 * 1024) {
           body = '';
+          aborted = true;
           if (!res.headersSent) {
             res.writeHead(413, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, error: 'Payload too large.' }));
@@ -311,7 +313,9 @@ function startLocalServer(port = 3000) {
         }
       });
       req.on('error', () => { isProcessing = false; });
+      req.on('close', () => { if (aborted) isProcessing = false; });
       req.on('end', async () => {
+        if (aborted || res.headersSent) return;
         try {
           let inputData = path.join(ROOT_DIR, 'sample.jpg');
           if (body) {
